@@ -1,0 +1,13 @@
+{
+  "orderId": "6496063357177",
+  "orderNumber": "51962",
+  "customerName": "Alex Patterson",
+  "customerEmail": "patterson.alex@outlook.com",
+  "totalAmount": "1387.00",
+  "currency": "AUD",
+  "orderDate": "2025-10-24T19:39:09+11:00",
+  "lineItems": "[{\"id\":15476558070009,\"name\":\"Medical Consultation - Registration\",\"price\":\"59.00\",\"quantity\":1},{\"id\":15490524774649,\"name\":\"AOD-9604 - Vial / 5ml / 1200mcg/ml\",\"price\":\"299.00\",\"quantity\":1},{\"id\":15490524807417,\"name\":\"BPC-157/Thymosin Beta-4 - Vial - 2 x 5ml\",\"price\":\"1029.00\",\"quantity\":1}]",
+  "shippingAddress": "{\"first_name\":\"Alex\",\"last_name\":\"Patterson\",\"address1\":\"13a alicia gardens\",\"city\":\"Ballajura\",\"province\":\"Western Australia\",\"country\":\"Australia\",\"zip\":\"6066\",\"phone\":\"+61450099915\"}",
+  "tags": "Consultation with Dr Edward, osp: Late, processed-by-SplitOrder"
+}
+
