@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Order } from '@/lib/types';
 
 interface OrderCardProps {
@@ -9,19 +10,24 @@ interface OrderCardProps {
 }
 
 export default function OrderCard({ order, isSelected, onClick }: OrderCardProps) {
-  // Format date
-  const formatDate = (dateString: string) => {
+  const [formattedDate, setFormattedDate] = useState<string>('');
+  const [mounted, setMounted] = useState(false);
+
+  // Format date only on client side to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
+      const date = new Date(order.orderDate);
+      const formatted = date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
       });
+      setFormattedDate(formatted);
     } catch {
-      return dateString;
+      setFormattedDate(order.orderDate);
     }
-  };
+  }, [order.orderDate]);
 
   return (
     <div
@@ -51,11 +57,17 @@ export default function OrderCard({ order, isSelected, onClick }: OrderCardProps
       </div>
 
       <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-600">
-        <span className="text-xl font-bold text-green-400">
-          {order.currency} ${order.totalAmount}
-        </span>
+        {order.totalAmount && order.currency ? (
+          <span className="text-xl font-bold text-green-400">
+            {order.currency} ${order.totalAmount}
+          </span>
+        ) : (
+          <span className="text-sm text-slate-500 italic">
+            Amount not specified
+          </span>
+        )}
         <span className="text-sm text-slate-400">
-          {formatDate(order.orderDate)}
+          {mounted && formattedDate ? formattedDate : order.orderDate}
         </span>
       </div>
     </div>

@@ -1,0 +1,94 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dilhan.ngrok.app/api/receive-order",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "orderId",
+              "value": "={{ $json.orderId }}"
+            },
+            {
+              "name": "orderNumber",
+              "value": "={{ $json.orderNumber }}"
+            },
+            {
+              "name": "customerName",
+              "value": "={{ $json.customerName }}"
+            },
+            {
+              "name": "customerEmail",
+              "value": "={{ $json.customerEmail }}"
+            },
+            {
+              "name": "orderDate",
+              "value": "={{ $json.orderDate }}"
+            },
+            {
+              "name": "totalAmount",
+              "value": "={{ $json.totalAmount || '0.00' }}"
+            },
+            {
+              "name": "currency",
+              "value": "={{ $json.currency || 'USD' }}"
+            },
+            {
+              "name": "weightsatisfaction",
+              "value": "={{ $('Map Shopify to Salesforce Fields').item.json.WeightSatisfactionc }}"
+            },
+            {
+              "name": "dietdescription",
+              "value": "={{ $('Map Shopify to Salesforce Fields').item.json.DietDescriptionc }}"
+            },
+            {
+              "name": "lineItems",
+              "value": "={{ $json.lineItems ? JSON.stringify($json.lineItems) : '' }}"
+            },
+            {
+              "name": "shippingAddress",
+              "value": "={{ $json.shippingAddress ? JSON.stringify($json.shippingAddress) : '' }}"
+            },
+            {
+              "name": "tags",
+              "value": "={{ $json.tags || '' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2688,
+        704
+      ],
+      "id": "bc795a49-887c-4142-b872-fad84daa542a",
+      "name": "Send to Doctor Dashboard"
+    }
+  ],
+  "connections": {
+    "Send to Doctor Dashboard": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ce9b7d7bc725a0b36084b48d7213519382aaa7a1c484c53139a9cf584aeefd7e"
+  }
+}
+

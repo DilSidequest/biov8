@@ -29,17 +29,25 @@ export default function Home() {
   useEffect(() => {
     const pollForOrders = async () => {
       try {
+        console.log('[Polling] Checking for new orders...');
         const response = await fetch('/api/receive-order');
         if (response.ok) {
           const data = await response.json();
+          console.log('[Polling] Received response:', data);
           if (data.orders && data.orders.length > 0) {
+            console.log(`[Polling] Found ${data.orders.length} new order(s), adding to store...`);
             data.orders.forEach((order: Order) => {
+              console.log('[Polling] Adding order:', order.orderId, order.orderNumber);
               orderStore.addOrder(order);
             });
+          } else {
+            console.log('[Polling] No new orders');
           }
+        } else {
+          console.error('[Polling] Response not OK:', response.status, response.statusText);
         }
       } catch (error) {
-        console.error('Error polling for orders:', error);
+        console.error('[Polling] Error polling for orders:', error);
       }
     };
 
@@ -47,9 +55,13 @@ export default function Home() {
     const interval = setInterval(pollForOrders, 3000);
 
     // Also poll immediately on mount
+    console.log('[Polling] Starting order polling...');
     pollForOrders();
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log('[Polling] Stopping order polling');
+      clearInterval(interval);
+    };
   }, []);
 
   const handleSelectOrder = (order: Order) => {

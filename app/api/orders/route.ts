@@ -6,9 +6,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validate required fields
-    const { orderId, orderNumber, customerName, customerEmail, totalAmount } = body;
-    
-    if (!orderId || !orderNumber || !customerName || !customerEmail || !totalAmount) {
+    const { orderId, orderNumber, customerName, customerEmail } = body;
+
+    if (!orderId || !orderNumber || !customerName || !customerEmail) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }

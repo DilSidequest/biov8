@@ -1,0 +1,187 @@
+{
+  "bodyParameters": {
+    "parameters": [
+      {
+        "name": "orderId",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.orderId || $json.orderId || $json.id }}"
+      },
+      {
+        "name": "orderNumber",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.orderNumber || $json.orderNumber || $json.order_number || $json.name }}"
+      },
+      {
+        "name": "customerName",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.Name || $('Map Shopify to Salesforce Fields').item.json.customerName || $json.customerName }}"
+      },
+      {
+        "name": "customerEmail",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.customerEmail || $json.customerEmail || $json.email }}"
+      },
+      {
+        "name": "orderDate",
+        "value": "={{ $json.orderDate || $json.created_at || new Date().toISOString() }}"
+      },
+      {
+        "name": "totalAmount",
+        "value": "={{ $json.totalAmount || $json.total_price || '0.00' }}"
+      },
+      {
+        "name": "currency",
+        "value": "={{ $json.currency || 'USD' }}"
+      },
+      {
+        "name": "shippingAddress",
+        "value": "={{ $('Get Shopify Customer Metafields1').item.json.data.customers.edges[0].node.addresses[0].address1 }} {{ $('Get Shopify Customer Metafields1').item.json.data.customers.edges[0].node.addresses[0].city }} {{ $('Get Shopify Customer Metafields1').item.json.data.customers.edges[0].node.addresses[0].country }}"
+      },
+      {
+        "name": "weightsatisfaction",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.WeightSatisfactionc || 'Not Provided' }}"
+      },
+      {
+        "name": "dietdescription",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.DietDescriptionc || 'Not Provided' }}"
+      },
+      {
+        "name": "SexualIssuesImpactRelationshipc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.SexualIssuesImpactRelationshipc || 'Not Provided' }}"
+      },
+      {
+        "name": "WorriedAboutFastAgingc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.WorriedAboutFastAgingc || 'Not Provided' }}"
+      },
+      {
+        "name": "LookOlderThanFeelc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.LookOlderThanFeelc || 'Not Provided' }}"
+      },
+      {
+        "name": "DeclineInBalanceFunctionMentalc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.DeclineInBalanceFunctionMentalc || 'Not Provided' }}"
+      },
+      {
+        "name": "OvertakenByAgingc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.OvertakenByAgingc || 'Not Provided' }}"
+      },
+      {
+        "name": "AgingProcessImpactc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.AgingProcessImpactc || 'Not Provided' }}"
+      },
+      {
+        "name": "InterestInSlowingAgingc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.InterestInSlowingAgingc || 'Not Provided' }}"
+      },
+      {
+        "name": "LackOfMuscleMassStrengthImpactc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.LackOfMuscleMassStrengthImpactc || 'Not Provided' }}"
+      },
+      {
+        "name": "DesiredMuscleMassDefinitionc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.DesiredMuscleMassDefinitionc || 'Not Provided' }}"
+      },
+      {
+        "name": "DesiredResponseToExercisec",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.DesiredResponseToExercisec || 'Not Provided' }}"
+      },
+      {
+        "name": "MuscleFunctionImprovementImpactc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.MuscleFunctionImprovementImpactc || 'Not Provided' }}"
+      },
+      {
+        "name": "StepsTakenForMuscleHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.StepsTakenForMuscleHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "EffectivenessOfActionsTakenc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.EffectivenessOfActionsTakenc || 'Not Provided' }}"
+      },
+      {
+        "name": "MentallySharpAsBeforec",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.MentallySharpAsBeforec || 'Not Provided' }}"
+      },
+      {
+        "name": "ConcernAboutCognitiveDeclinec",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.ConcernAboutCognitiveDeclinec || 'Not Provided' }}"
+      },
+      {
+        "name": "TakenActionsToImproveBrainFunctionc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.TakenActionsToImproveBrainFunctionc || 'Not Provided' }}"
+      },
+      {
+        "name": "NutritionalSupportHelpsForBrainc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.NutritionalSupportHelpsForBrainc || 'Not Provided' }}"
+      },
+      {
+        "name": "ConcernedAboutFutureBrainFunctionc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.ConcernedAboutFutureBrainFunctionc || 'Not Provided' }}"
+      },
+      {
+        "name": "MoreUnwellThanBeforec",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.MoreUnwellThanBeforec || 'Not Provided' }}"
+      },
+      {
+        "name": "LessEffectiveRecoveryThanBeforec",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.LessEffectiveRecoveryThanBeforec || 'Not Provided' }}"
+      },
+      {
+        "name": "LessResilientThanBeforec",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.LessResilientThanBeforec || 'Not Provided' }}"
+      },
+      {
+        "name": "ImmuneHealthHelpsOnOverallWellnessc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.ImmuneHealthHelpsOnOverallWellnessc || 'Not Provided' }}"
+      },
+      {
+        "name": "ImmuneSystemFunctioningWellc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.ImmuneSystemFunctioningWellc || 'Not Provided' }}"
+      },
+      {
+        "name": "ImmuneMeasuresImproveHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.ImmuneMeasuresImproveHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "SatisfiedWithGutHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.SatisfiedWithGutHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "TakenActionsToImproveGutHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.TakenActionsToImproveGutHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "StepsTakenForGutHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.StepsTakenForGutHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "GutHealthImproveOverallHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.GutHealthImproveOverallHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "SymptomsMightRelatedToGutHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.SymptomsMightRelatedToGutHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "ImpactOfBetterGutHealthc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.ImpactOfBetterGutHealthc || 'Not Provided' }}"
+      },
+      {
+        "name": "MentalHealthHistoryc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.MentalHealthHistoryc || 'Not Provided' }}"
+      },
+      {
+        "name": "EverReceivedCounselingOrTreatmentc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.EverReceivedCounselingOrTreatmentc || 'Not Provided' }}"
+      },
+      {
+        "name": "CurrentMentalEmotionalStateRatingc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.CurrentMentalEmotionalStateRatingc || 'Not Provided' }}"
+      },
+      {
+        "name": "DifficultySleepingc",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.DifficultySleepingc || 'Not Provided' }}"
+      },
+      {
+        "name": "FeelRefreshedEagerUponWaking_c",
+        "value": "={{ $('Map Shopify to Salesforce Fields').item.json.FeelRefreshedEagerUponWaking_c || 'Not Provided' }}"
+      }
+    ]
+  }
+}
+
