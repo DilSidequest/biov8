@@ -283,39 +283,37 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       // Convert file to base64
       const signatureBase64 = await convertFileToBase64(signaturePdf);
 
-      // Prepare payload with full customer data + doctor's additions
+      // Prepare payload for prescription API
       const payload = {
-        // Customer data from n8n
-        orderId: customerData.orderId,
-        orderNumber: customerData.orderNumber,
-        customerName: customerData.customerName,
+        // Required fields
         customerEmail: customerData.customerEmail,
-        totalAmount: customerData.totalAmount,
-        currency: customerData.currency,
-        orderDate: customerData.orderDate,
-        lineItems: customerData.lineItems,
-        shippingAddress: customerData.shippingAddress,
-        tags: customerData.tags,
-        // Doctor's additions
+        orderId: customerData.orderId,
         doctorName,
-        clinicState,
         medicineName,
+        doctorNotes,
+        // Optional fields
+        clinicState,
         medicineQuantity,
         medicineDescription,
-        doctorNotes,
-        signaturePdf: signatureBase64,
+        signaturePdfPath: signatureBase64, // Store as base64 for now
         // Health Assessment
-        healthChanges: healthChanges === 'yes' ? (healthChangesDetails || 'Yes') : 'No',
-        takingMedications: takingMedications === 'yes' ? (takingMedicationsDetails || 'Yes') : 'No',
-        hadMedicationBefore: hadMedicationBefore === 'yes' ? 'Yes' : 'No',
-        pregnancyStatus: pregnancyStatus === 'yes' ? 'Yes' : 'No',
-        allergicReaction: allergicReaction === 'yes' ? 'Yes' : 'No',
-        allergies: allergies === 'yes' ? (allergiesDetails || 'Yes') : 'No',
-        medicalConditions: medicalConditions === 'yes' ? (medicalConditionsDetails || 'Yes') : 'No',
+        healthChanges,
+        healthChangesDetails: healthChanges === 'yes' ? healthChangesDetails : null,
+        takingMedications,
+        takingMedicationsDetails: takingMedications === 'yes' ? takingMedicationsDetails : null,
+        hadMedicationBefore,
+        pregnancyStatus,
+        allergicReaction,
+        allergies,
+        allergiesDetails: allergies === 'yes' ? allergiesDetails : null,
+        medicalConditions,
+        medicalConditionsDetails: medicalConditions === 'yes' ? medicalConditionsDetails : null,
       };
 
-      // Submit to API
-      const response = await fetch('/api/submit', {
+      console.log('[OrderDetails] Submitting prescription to database...');
+
+      // Submit to prescription API
+      const response = await fetch('/api/prescriptions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -324,10 +322,14 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       });
 
       if (!response.ok) {
-        throw new Error('Submission failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Submission failed');
       }
 
-      setSuccess('Prescription form submitted successfully!');
+      const result = await response.json();
+      console.log('[OrderDetails] Prescription saved:', result);
+
+      setSuccess('Prescription saved successfully to database!');
 
       // Reset form after a short delay
       setTimeout(() => {
@@ -338,7 +340,7 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       }, 2000);
 
     } catch (err) {
-      setError('Failed to submit prescription form. Please try again.');
+      setError(`Failed to save prescription: ${err instanceof Error ? err.message : 'Unknown error'}`);
       console.error('Submission error:', err);
     } finally {
       setIsSubmitting(false);
@@ -383,7 +385,7 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
     return (
       <div className="h-full flex flex-col bg-slate-900">
         <div className="p-6 border-b border-slate-700 bg-slate-800">
-          <h2 className="text-2xl font-bold text-slate-100 text-center">Customer Lookup</h2>
+          <h2 className="text-2xl font-bold text-slate-100 text-center">Prescription Generation</h2>
           <p className="text-sm text-slate-400 mt-2 text-center">Enter customer email to fetch information</p>
         </div>
 
