@@ -17,8 +17,10 @@ This receives the prescription data from your webapp.
 **Configuration:**
 - **HTTP Method:** POST
 - **Path:** `/prescription-submit` (or your preferred path)
-- **Response Mode:** Respond Immediately
+- **Response Mode:** Wait for Webhook Response
 - **Response Code:** 200
+
+**Important:** The webhook MUST be set to "Wait for Webhook Response" mode so that the webapp waits for the workflow to complete before returning to the doctor. This ensures proper session management when multiple doctors are using the system simultaneously.
 
 The webhook will receive data including:
 - Patient information
@@ -70,12 +72,37 @@ Add nodes to:
 - Store in cloud storage (Google Drive, Dropbox, etc.)
 - Update your database with prescription status
 
+### Step 6: Respond to Webhook (REQUIRED)
+**This is the final node in your workflow and is REQUIRED for proper operation.**
+
+Add a **Respond to Webhook** node as the last node in your workflow.
+
+**Configuration:**
+- **Response Code:** 200
+- **Response Body:** JSON with success status and any relevant data
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "prescriptionId": "{{ $json.prescriptionId }}",
+  "pdfUrl": "{{ $json.pdfUrl }}",
+  "message": "Prescription generated successfully"
+}
+```
+
+**Why this is required:**
+- The webapp waits up to 2 minutes for the workflow to complete
+- Multiple doctors can use the system simultaneously without conflicts
+- Each doctor gets confirmation that their specific prescription was processed
+- The webapp receives the prescription ID and PDF URL for display/storage
+
 ## Data Flow Diagram
 
 ```
-Webapp Submission
+Webapp Submission (Doctor submits form)
     ↓
-[Webhook Node] - Receives POST request
+[Webhook Node] - Receives POST request (Wait for Webhook Response mode)
     ↓
 [Code Node] - Processes data & generates medicine HTML
     ↓
@@ -84,6 +111,10 @@ Webapp Submission
 [PDF Converter] - Converts HTML to PDF
     ↓
 [Email/Storage] - Sends or stores prescription
+    ↓
+[Respond to Webhook] - Sends response back to webapp (REQUIRED)
+    ↓
+Webapp receives confirmation and displays to doctor
 ```
 
 ## Medicine Handling
@@ -181,12 +212,27 @@ The template will display 3 rows in the medicines table, automatically stacking 
 - Verify the Code node output has all required fields
 - Check that variable names match exactly
 
+## Concurrent Usage & Session Management
+
+This webapp is designed for **multiple doctors to use simultaneously** (internal use, not public).
+
+**How it handles concurrent requests:**
+- Each doctor's submission creates an independent request with a unique request ID
+- The webapp waits up to 2 minutes for each workflow to complete
+- No shared state between requests - each doctor's session is isolated
+- Database uses connection pooling (max 20 concurrent connections)
+- Request tracking via unique IDs in logs for debugging
+
+**Important:** Make sure your n8n webhook is set to "Wait for Webhook Response" mode and includes a "Respond to Webhook" node at the end. This ensures each doctor receives confirmation for their specific submission.
+
 ## Next Steps
 
 After setup:
-1. Test the workflow end-to-end
-2. Configure error handling
-3. Set up email notifications
-4. Add logging for audit trail
-5. Configure backup storage for prescriptions
+1. Test the workflow end-to-end with a single submission
+2. Test with multiple concurrent submissions (simulate multiple doctors)
+3. Configure error handling
+4. Set up email notifications
+5. Add logging for audit trail
+6. Configure backup storage for prescriptions
+7. Verify the "Respond to Webhook" node is working correctly
 

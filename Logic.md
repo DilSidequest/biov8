@@ -336,31 +336,50 @@ export async function POST(request: Request) {
     submittedAt: new Date().toISOString()
   }
   
-  // 4. Send to n8n webhook
+  // 4. Send to n8n webhook and wait for workflow completion
   try {
     const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL
-    
+
+    // Create abort controller with 120 second timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120000)
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': process.env.N8N_API_KEY || ''
       },
-      body: JSON.stringify(webhookPayload)
+      body: JSON.stringify(webhookPayload),
+      signal: controller.signal
     })
-    
+
+    clearTimeout(timeoutId)
+
     if (!response.ok) {
       throw new Error(`n8n webhook failed: ${response.status}`)
     }
-    
-    // 5. Return success
+
+    // Parse response from n8n workflow (from "Respond to Webhook" node)
+    const responseData = await response.json().catch(() => ({}))
+
+    // 5. Return success with data from n8n
     return Response.json({
       success: true,
-      message: 'Prescription form submitted successfully'
+      message: 'Prescription form submitted successfully',
+      data: responseData
     })
-    
+
   } catch (error) {
     // 6. Handle error
+    if (error.name === 'AbortError') {
+      console.error('n8n webhook timed out after 120 seconds')
+      return Response.json(
+        { error: 'Workflow timed out after 120 seconds' },
+        { status: 500 }
+      )
+    }
+
     console.error('Failed to send to n8n:', error)
     return Response.json(
       { error: 'Failed to submit to n8n' },
@@ -545,9 +564,15 @@ useEffect(() => {
 ```
 Path: doctor-submission
 Method: POST
-Response Mode: Respond when workflow finishes
+Response Mode: Wait for Webhook Response (REQUIRED)
 Authentication: None (or Header Auth with API key)
+Timeout: 120 seconds
 ```
+
+**Important:** The webhook MUST be set to "Wait for Webhook Response" mode. The webapp waits up to 2 minutes for the workflow to complete. This is essential for:
+- Proper session management with multiple concurrent doctors
+- Confirmation that the prescription was successfully generated
+- Returning prescription ID and PDF URL to the doctor
 
 **Expected Payload:**
 ```json
@@ -556,6 +581,16 @@ Authentication: None (or Header Auth with API key)
   "customerEmail": "jjmouse77@hotmail.com",
   "doctorNotes": "Patient requires AOD-9604 for weight management...",
   "signaturePdf": "JVBERi0xLjQKJeLjz9MKMSAwIG9iag..."
+}
+```
+
+**Required Response (from "Respond to Webhook" node):**
+```json
+{
+  "success": true,
+  "prescriptionId": "12345",
+  "pdfUrl": "https://storage.example.com/prescriptions/12345.pdf",
+  "message": "Prescription generated successfully"
 }
 ```
 

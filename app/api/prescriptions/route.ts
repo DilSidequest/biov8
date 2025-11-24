@@ -12,11 +12,11 @@ export async function POST(request: NextRequest) {
     console.log('[prescriptions POST] Received prescription data');
 
     // Validate required fields
-    const { 
+    const {
       customerEmail,
       orderId,
       doctorName,
-      medicineName,
+      medicines, // Now expecting an array of medicines
       doctorNotes
     } = body;
 
@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
     if (!customerEmail) missingFields.push('customerEmail');
     if (!orderId) missingFields.push('orderId');
     if (!doctorName) missingFields.push('doctorName');
-    if (!medicineName) missingFields.push('medicineName');
+    if (!medicines || !Array.isArray(medicines) || medicines.length === 0) {
+      missingFields.push('medicines (must be a non-empty array)');
+    }
 
     if (missingFields.length > 0) {
       console.error('[prescriptions POST] Missing required fields:', missingFields);
@@ -65,6 +67,15 @@ export async function POST(request: NextRequest) {
       const orderDbId = orderResult.rows[0].id;
 
       // 3. Insert prescription
+      // TEMPORARY SOLUTION: Store medicines array as JSON in medicine_description field
+      // TODO: Update database schema to add a dedicated medicines JSONB column
+      // For now, we store:
+      // - First medicine name in medicine_name (for backward compatibility)
+      // - First medicine quantity in medicine_quantity
+      // - Full medicines array as JSON in medicine_description
+      const firstMedicine = medicines[0];
+      const medicinesJson = JSON.stringify(medicines);
+
       const prescriptionResult = await client.query(
         `INSERT INTO prescriptions (
           customer_id, order_id, doctor_name, clinic_state,
@@ -83,9 +94,9 @@ export async function POST(request: NextRequest) {
           orderDbId,
           doctorName,
           body.clinicState,
-          medicineName,
-          body.medicineQuantity,
-          body.medicineDescription,
+          firstMedicine.name, // Store first medicine name for backward compatibility
+          firstMedicine.quantity,
+          medicinesJson, // Store full medicines array as JSON in description field
           doctorNotes,
           body.healthChanges,
           body.healthChangesDetails,

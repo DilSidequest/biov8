@@ -18,51 +18,51 @@
           "parameters": [
             {
               "name": "orderId",
-              "value": "={{ $json.orderId }}"
+              "value": "{{ $json.orderId }}"
             },
             {
               "name": "orderNumber",
-              "value": "={{ $json.orderNumber }}"
+              "value": "{{ $json.orderNumber }}"
             },
             {
               "name": "customerName",
-              "value": "={{ $json.customerName }}"
+              "value": "{{ $json.customerName }}"
             },
             {
               "name": "customerEmail",
-              "value": "={{ $json.customerEmail }}"
+              "value": "{{ $json.customerEmail }}"
             },
             {
               "name": "orderDate",
-              "value": "={{ $json.orderDate }}"
+              "value": "{{ $json.orderDate }}"
             },
             {
               "name": "totalAmount",
-              "value": "={{ $json.totalAmount || '0.00' }}"
+              "value": "{{ $json.totalAmount || '0.00' }}"
             },
             {
               "name": "currency",
-              "value": "={{ $json.currency || 'USD' }}"
+              "value": "{{ $json.currency || 'USD' }}"
             },
             {
               "name": "weightsatisfaction",
-              "value": "={{ $('Map Shopify to Salesforce Fields').item.json.WeightSatisfactionc }}"
+              "value": "{{ $('Map Shopify to Salesforce Fields').item.json.WeightSatisfactionc }}"
             },
             {
               "name": "dietdescription",
-              "value": "={{ $('Map Shopify to Salesforce Fields').item.json.DietDescriptionc }}"
+              "value": "{{ $('Map Shopify to Salesforce Fields').item.json.DietDescriptionc }}"
             },
             {
               "name": "lineItems",
-              "value": "={{ $json.lineItems ? JSON.stringify($json.lineItems) : '' }}"
+              "value": "{{ $json.lineItems ? JSON.stringify($json.lineItems) : '' }}"
             },
             {
               "name": "shippingAddress",
-              "value": "={{ $json.shippingAddress ? JSON.stringify($json.shippingAddress) : '' }}"
+              "value": "{{ $json.shippingAddress ? JSON.stringify($json.shippingAddress) : '' }}"
             },
             {
               "name": "tags",
-              "value": "={{ $json.tags || '' }}"
+              "value": "{{ $json.tags || '' }}"
             }
           ]
         },

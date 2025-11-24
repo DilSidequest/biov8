@@ -18,9 +18,16 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
   // Form fields
   const [doctorName, setDoctorName] = useState('');
   const [clinicState, setClinicState] = useState('');
-  const [medicineName, setMedicineName] = useState('');
-  const [medicineQuantity, setMedicineQuantity] = useState('');
-  const [medicineDescription, setMedicineDescription] = useState('');
+
+  // Multiple medicines support
+  const [medicines, setMedicines] = useState<Array<{
+    name: string;
+    quantity: string;
+    description: string;
+  }>>([
+    { name: '', quantity: '', description: '' }
+  ]);
+
   const [doctorNotes, setDoctorNotes] = useState('');
   const [signaturePdf, setSignaturePdf] = useState<File | null>(null);
 
@@ -41,6 +48,23 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Medicine management functions
+  const addMedicine = () => {
+    setMedicines([...medicines, { name: '', quantity: '', description: '' }]);
+  };
+
+  const removeMedicine = (index: number) => {
+    if (medicines.length > 1) {
+      setMedicines(medicines.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateMedicine = (index: number, field: 'name' | 'quantity' | 'description', value: string) => {
+    const updatedMedicines = [...medicines];
+    updatedMedicines[index][field] = value;
+    setMedicines(updatedMedicines);
+  };
+
   // Reset form when starting over
   const resetForm = () => {
     setStep('email-lookup');
@@ -48,9 +72,7 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
     setCustomerData(null);
     setDoctorName('');
     setClinicState('');
-    setMedicineName('');
-    setMedicineQuantity('');
-    setMedicineDescription('');
+    setMedicines([{ name: '', quantity: '', description: '' }]);
     setDoctorNotes('');
     setSignaturePdf(null);
     setHealthChanges('');
@@ -100,10 +122,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
 
     setIsFetchingCustomer(true);
 
-    // Start timer for minimum loading time (10 seconds)
-    const startTime = Date.now();
-    const minimumLoadingTime = 10000; // 10 seconds in milliseconds
-
     try {
       const response = await fetch('/api/fetch-customer', {
         method: 'POST',
@@ -120,16 +138,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
 
       const data = await response.json();
 
-      // Calculate remaining time to meet minimum loading time
-      const elapsedTime = Date.now() - startTime;
-      const remainingTime = Math.max(0, minimumLoadingTime - elapsedTime);
-
-      // Wait for remaining time if needed
-      if (remainingTime > 0) {
-        console.log(`[OrderDetails] Waiting ${remainingTime}ms to meet minimum loading time`);
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
-      }
-
       if (data.success && data.customerData) {
         setCustomerData(data.customerData);
         setStep('form');
@@ -139,14 +147,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       }
 
     } catch (err: any) {
-      // Even on error, wait for minimum loading time
-      const elapsedTime = Date.now() - startTime;
-      const remainingTime = Math.max(0, minimumLoadingTime - elapsedTime);
-
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
-      }
-
       setError(err.message || 'Failed to fetch customer data. Please try again.');
       console.error('Customer fetch error:', err);
     } finally {
@@ -216,19 +216,29 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       return;
     }
 
-    if (!medicineName || medicineName.trim().length < 2) {
-      setError('Medicine name is required');
+    // Validate medicines
+    if (medicines.length === 0) {
+      setError('At least one medicine is required');
       return;
     }
 
-    if (!medicineQuantity || medicineQuantity.trim().length < 1) {
-      setError('Medicine quantity is required');
-      return;
-    }
+    for (let i = 0; i < medicines.length; i++) {
+      const medicine = medicines[i];
 
-    if (!medicineDescription || medicineDescription.trim().length < 5) {
-      setError('Medicine description is required (minimum 5 characters)');
-      return;
+      if (!medicine.name || medicine.name.trim().length < 2) {
+        setError(`Medicine ${i + 1}: Name is required (minimum 2 characters)`);
+        return;
+      }
+
+      if (!medicine.quantity || medicine.quantity.trim().length < 1) {
+        setError(`Medicine ${i + 1}: Quantity is required`);
+        return;
+      }
+
+      if (!medicine.description || medicine.description.trim().length < 5) {
+        setError(`Medicine ${i + 1}: Description is required (minimum 5 characters)`);
+        return;
+      }
     }
 
     if (!doctorNotes || doctorNotes.length < 10) {
@@ -283,19 +293,25 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       // Convert file to base64
       const signatureBase64 = await convertFileToBase64(signaturePdf);
 
-      // Prepare payload for prescription API
+      // Prepare payload for n8n submission
       const payload = {
-        // Required fields
-        customerEmail: customerData.customerEmail,
+        // Original order data
         orderId: customerData.orderId,
+        orderNumber: customerData.orderNumber,
+        customerName: customerData.customerName,
+        customerEmail: customerData.customerEmail,
+        totalAmount: customerData.totalAmount,
+        currency: customerData.currency,
+        orderDate: customerData.orderDate,
+        lineItems: customerData.lineItems,
+        shippingAddress: customerData.shippingAddress,
+        tags: customerData.tags,
+        // Doctor's additions
         doctorName,
-        medicineName,
-        doctorNotes,
-        // Optional fields
         clinicState,
-        medicineQuantity,
-        medicineDescription,
-        signaturePdfPath: signatureBase64, // Store as base64 for now
+        medicines, // Array of medicines
+        doctorNotes,
+        signaturePdf: signatureBase64, // Base64 encoded signature
         // Health Assessment
         healthChanges,
         healthChangesDetails: healthChanges === 'yes' ? healthChangesDetails : null,
@@ -310,10 +326,10 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
         medicalConditionsDetails: medicalConditions === 'yes' ? medicalConditionsDetails : null,
       };
 
-      console.log('[OrderDetails] Submitting prescription to database...');
+      console.log('[OrderDetails] Submitting prescription to n8n...');
 
-      // Submit to prescription API
-      const response = await fetch('/api/prescriptions', {
+      // Submit to n8n via /api/submit
+      const response = await fetch('/api/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -327,9 +343,9 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       }
 
       const result = await response.json();
-      console.log('[OrderDetails] Prescription saved:', result);
+      console.log('[OrderDetails] Prescription sent to n8n:', result);
 
-      setSuccess('Prescription saved successfully to database!');
+      setSuccess('Prescription submitted successfully!');
 
       // Reset form after a short delay
       setTimeout(() => {
@@ -350,9 +366,8 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
   const isFormValid = customerData &&
     doctorName.trim().length >= 2 &&
     clinicState.trim().length >= 2 &&
-    medicineName.trim().length >= 2 &&
-    medicineQuantity.trim().length >= 1 &&
-    medicineDescription.trim().length >= 5 &&
+    medicines.length > 0 &&
+    medicines.every(m => m.name.trim().length >= 2 && m.quantity.trim().length >= 1 && m.description.trim().length >= 5) &&
     doctorNotes.length >= 10 &&
     signaturePdf &&
     healthChanges &&
@@ -890,52 +905,89 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
             />
           </div>
 
-          {/* Medicine Name */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2 text-center">
-              Medicine Name <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={medicineName}
-              onChange={(e) => setMedicineName(e.target.value)}
-              placeholder="Enter medicine name"
-              className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-              required
-            />
-          </div>
+          {/* Medicines Section */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-blue-300">Prescribed Medicines</h3>
+              <button
+                type="button"
+                onClick={addMedicine}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Medicine
+              </button>
+            </div>
 
-          {/* Medicine Quantity */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2 text-center">
-              Medicine Quantity <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={medicineQuantity}
-              onChange={(e) => setMedicineQuantity(e.target.value)}
-              placeholder="Enter quantity (e.g., 30 tablets, 100ml)"
-              className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-              required
-            />
-          </div>
+            {medicines.map((medicine, index) => (
+              <div key={index} className="border border-slate-700 rounded-lg p-6 bg-slate-800/50 space-y-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-md font-semibold text-blue-200">Medicine {index + 1}</h4>
+                  {medicines.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMedicine(index)}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Remove
+                    </button>
+                  )}
+                </div>
 
-          {/* Medicine Description */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2 text-center">
-              Medicine Description <span className="text-red-400">*</span>
-            </label>
-            <textarea
-              value={medicineDescription}
-              onChange={(e) => setMedicineDescription(e.target.value)}
-              placeholder="Enter dosage instructions and usage details..."
-              rows={4}
-              className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              required
-            />
-            <p className="text-sm text-slate-400 mt-2 text-center">
-              {medicineDescription.length} characters (minimum 5)
-            </p>
+                {/* Medicine Name */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Medicine Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={medicine.name}
+                    onChange={(e) => updateMedicine(index, 'name', e.target.value)}
+                    placeholder="Enter medicine name"
+                    className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                {/* Medicine Quantity */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Medicine Quantity <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={medicine.quantity}
+                    onChange={(e) => updateMedicine(index, 'quantity', e.target.value)}
+                    placeholder="Enter quantity (e.g., 30 tablets, 100ml)"
+                    className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                {/* Medicine Description */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Medicine Description <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    value={medicine.description}
+                    onChange={(e) => updateMedicine(index, 'description', e.target.value)}
+                    placeholder="Enter dosage instructions and usage details..."
+                    rows={4}
+                    className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    required
+                  />
+                  <p className="text-sm text-slate-400 mt-2">
+                    {medicine.description.length} characters (minimum 5)
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Doctor's Notes */}

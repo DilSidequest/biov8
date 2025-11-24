@@ -40,9 +40,10 @@ export async function POST(request: NextRequest) {
 
     console.log('Sending email to n8n webhook to fetch customer data...');
 
-    // Send to n8n webhook with timeout
+    // Send to n8n webhook with extended timeout for workflow completion
+    // Increased to 120 seconds (2 minutes) to allow n8n workflow to complete
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
 
     try {
       const response = await fetch(webhookUrl, {
@@ -69,49 +70,9 @@ export async function POST(request: NextRequest) {
       const customerData = await response.json();
       console.log('Customer data received from n8n');
 
-      // Poll to ensure the order has been received by the webapp
-      // This ensures the HTTP request from n8n has been processed before showing the form
-      console.log('Waiting for order to be fully received by webapp...');
-
-      const maxPollingAttempts = 10; // Poll for up to 10 seconds
-      const pollingInterval = 1000; // 1 second between polls
-      let pollingAttempts = 0;
-      let orderReceived = false;
-
-      while (pollingAttempts < maxPollingAttempts && !orderReceived) {
-        // Check if order exists in the receive-order queue
-        try {
-          const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/receive-order`, {
-            method: 'GET',
-          });
-
-          if (checkResponse.ok) {
-            const queueData = await checkResponse.json();
-            // Check if the order for this email exists in the queue
-            const orderExists = queueData.orders?.some((order: any) => order.customerEmail === email);
-
-            if (orderExists) {
-              console.log('Order confirmed in webapp queue');
-              orderReceived = true;
-              break;
-            }
-          }
-        } catch (pollError) {
-          console.error('Error polling for order:', pollError);
-        }
-
-        pollingAttempts++;
-        if (pollingAttempts < maxPollingAttempts) {
-          console.log(`Polling attempt ${pollingAttempts}/${maxPollingAttempts}...`);
-          await new Promise(resolve => setTimeout(resolve, pollingInterval));
-        }
-      }
-
-      if (!orderReceived) {
-        console.log('Order not confirmed in queue after polling, but proceeding with customer data');
-      }
-
-      // Return customer data
+      // Return customer data immediately
+      // Note: The order will be saved to the database by n8n's separate HTTP request to /api/receive-order
+      // We don't need to wait for database confirmation before showing the form to the doctor
       return NextResponse.json({
         success: true,
         customerData,
@@ -121,9 +82,9 @@ export async function POST(request: NextRequest) {
       clearTimeout(timeoutId);
 
       if (fetchError.name === 'AbortError') {
-        console.error('n8n webhook request timed out after 30 seconds');
+        console.error('n8n webhook request timed out after 120 seconds');
         return NextResponse.json(
-          { error: 'Customer data fetch request timed out' },
+          { error: 'Customer data fetch request timed out after 120 seconds' },
           { status: 500 }
         );
       }
