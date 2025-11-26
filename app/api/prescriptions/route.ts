@@ -76,10 +76,16 @@ export async function POST(request: NextRequest) {
       const firstMedicine = medicines[0];
       const medicinesJson = JSON.stringify(medicines);
 
+      // Prepare pre-approved medicines as JSON string
+      const preApprovedMedicinesJson = body.preApprovedMedicines
+        ? JSON.stringify(body.preApprovedMedicines)
+        : null;
+
       const prescriptionResult = await client.query(
         `INSERT INTO prescriptions (
-          customer_id, order_id, doctor_name, clinic_state,
+          customer_id, order_id, doctor_name,
           medicine_name, medicine_quantity, medicine_description,
+          pre_approved_medicines,
           doctor_notes, health_changes, health_changes_details,
           taking_medications, taking_medications_details,
           had_medication_before, pregnancy_status, allergic_reaction,
@@ -93,10 +99,10 @@ export async function POST(request: NextRequest) {
           customerId,
           orderDbId,
           doctorName,
-          body.clinicState,
           firstMedicine.name, // Store first medicine name for backward compatibility
           firstMedicine.quantity,
           medicinesJson, // Store full medicines array as JSON in description field
+          preApprovedMedicinesJson, // Store pre-approved medicines as JSON
           doctorNotes,
           body.healthChanges,
           body.healthChangesDetails,

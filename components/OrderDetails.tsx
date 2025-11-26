@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Order } from '@/lib/types';
+import medicinesData from '@/lib/medicines.json';
 
 interface OrderDetailsProps {
   order: Order | null;
@@ -17,7 +18,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
 
   // Form fields
   const [doctorName, setDoctorName] = useState('');
-  const [clinicState, setClinicState] = useState('');
 
   // Multiple medicines support
   const [medicines, setMedicines] = useState<Array<{
@@ -48,6 +48,27 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Autocomplete state for medicine names
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(null);
+  const [filteredMedicines, setFilteredMedicines] = useState<string[]>([]);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  // Pre-approved medicines for future prescriptions
+  const [preApprovedMedicines, setPreApprovedMedicines] = useState<string[]>([]);
+  const [preApprovedSearchQuery, setPreApprovedSearchQuery] = useState('');
+
+  // Filter out non-medicine items (bundles, programs, accessories)
+  const actualMedicines = medicinesData.medicines.filter(med => {
+    const lowerMed = med.toLowerCase();
+    return !lowerMed.includes('bundle') &&
+           !lowerMed.includes('program') &&
+           !lowerMed.includes('stack') &&
+           !lowerMed.includes('sharps') &&
+           !lowerMed.includes('swabs') &&
+           !lowerMed.includes('container') &&
+           med !== 'Mounjaro Tips';
+  });
+
   // Medicine management functions
   const addMedicine = () => {
     setMedicines([...medicines, { name: '', quantity: '', description: '' }]);
@@ -63,7 +84,44 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
     const updatedMedicines = [...medicines];
     updatedMedicines[index][field] = value;
     setMedicines(updatedMedicines);
+
+    // Handle autocomplete filtering for medicine name
+    if (field === 'name') {
+      if (value.trim().length > 0) {
+        const filtered = actualMedicines.filter(med =>
+          med.toLowerCase().includes(value.toLowerCase())
+        );
+        setFilteredMedicines(filtered);
+        setActiveDropdownIndex(index);
+      } else {
+        setFilteredMedicines([]);
+        setActiveDropdownIndex(null);
+      }
+    }
   };
+
+  const selectMedicine = (index: number, medicineName: string) => {
+    const updatedMedicines = [...medicines];
+    updatedMedicines[index].name = medicineName;
+    setMedicines(updatedMedicines);
+    setActiveDropdownIndex(null);
+    setFilteredMedicines([]);
+  };
+
+  // Handle clicking outside autocomplete dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
+        setActiveDropdownIndex(null);
+        setFilteredMedicines([]);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Reset form when starting over
   const resetForm = () => {
@@ -71,7 +129,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
     setCustomerEmail('');
     setCustomerData(null);
     setDoctorName('');
-    setClinicState('');
     setMedicines([{ name: '', quantity: '', description: '' }]);
     setDoctorNotes('');
     setSignaturePdf(null);
@@ -86,6 +143,8 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
     setAllergiesDetails('');
     setMedicalConditions('');
     setMedicalConditionsDetails('');
+    setPreApprovedMedicines([]);
+    setPreApprovedSearchQuery('');
     setError('');
     setSuccess('');
   };
@@ -211,11 +270,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       return;
     }
 
-    if (!clinicState || clinicState.trim().length < 2) {
-      setError('Clinic state is required');
-      return;
-    }
-
     // Validate medicines
     if (medicines.length === 0) {
       setError('At least one medicine is required');
@@ -308,10 +362,10 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
         tags: customerData.tags,
         // Doctor's additions
         doctorName,
-        clinicState,
         medicines, // Array of medicines
         doctorNotes,
         signaturePdf: signatureBase64, // Base64 encoded signature
+        preApprovedMedicines, // Pre-approved medicines for future prescriptions
         // Health Assessment
         healthChanges,
         healthChangesDetails: healthChanges === 'yes' ? healthChangesDetails : null,
@@ -365,7 +419,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
 
   const isFormValid = customerData &&
     doctorName.trim().length >= 2 &&
-    clinicState.trim().length >= 2 &&
     medicines.length > 0 &&
     medicines.every(m => m.name.trim().length >= 2 && m.quantity.trim().length >= 1 && m.description.trim().length >= 5) &&
     doctorNotes.length >= 10 &&
@@ -890,21 +943,6 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
             />
           </div>
 
-          {/* Clinic State */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2 text-center">
-              Clinic State <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={clinicState}
-              onChange={(e) => setClinicState(e.target.value)}
-              placeholder="Enter state (e.g., NSW, VIC, QLD)"
-              className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-              required
-            />
-          </div>
-
           {/* Medicines Section */}
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -939,8 +977,8 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
                   )}
                 </div>
 
-                {/* Medicine Name */}
-                <div>
+                {/* Medicine Name with Autocomplete */}
+                <div className="relative" ref={activeDropdownIndex === index ? autocompleteRef : null}>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     Medicine Name <span className="text-red-400">*</span>
                   </label>
@@ -948,10 +986,26 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
                     type="text"
                     value={medicine.name}
                     onChange={(e) => updateMedicine(index, 'name', e.target.value)}
-                    placeholder="Enter medicine name"
+                    placeholder="Start typing medicine name..."
                     className="w-full px-4 py-3 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
+
+                  {/* Autocomplete Dropdown */}
+                  {activeDropdownIndex === index && filteredMedicines.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredMedicines.map((med, medIndex) => (
+                        <button
+                          key={medIndex}
+                          type="button"
+                          onClick={() => selectMedicine(index, med)}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-700 text-slate-100 transition-colors border-b border-slate-700 last:border-b-0"
+                        >
+                          {med}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Medicine Quantity */}
@@ -988,6 +1042,100 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Pre-Approved Medicines for Future Prescriptions */}
+          <div className="space-y-4 border border-blue-600 rounded-lg p-6 bg-slate-800/30">
+            <div>
+              <h3 className="text-lg font-semibold text-blue-300 mb-2">Pre-Approved Medicines</h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Select medicines that this patient can be prescribed in the future without requiring additional doctor approval.
+                This allows nurses to prescribe these medicines directly.
+              </p>
+            </div>
+
+            {/* Search bar for pre-approved medicines */}
+            <div className="relative">
+              <input
+                type="text"
+                value={preApprovedSearchQuery}
+                onChange={(e) => setPreApprovedSearchQuery(e.target.value)}
+                placeholder="Search medicines..."
+                className="w-full px-4 py-3 pl-10 border border-slate-600 rounded-lg bg-slate-800 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-4 bg-slate-900/50 rounded-lg">
+              {(() => {
+                const filteredList = medicinesData.medicines.filter(medicine => {
+                  // Filter out bundles, programs, stacks, and non-medicine items
+                  const lowerMedicine = medicine.toLowerCase();
+                  const isActualMedicine = !lowerMedicine.includes('bundle') &&
+                         !lowerMedicine.includes('program') &&
+                         !lowerMedicine.includes('stack') &&
+                         !lowerMedicine.includes('welcome') &&
+                         !lowerMedicine.includes('tips') &&
+                         !lowerMedicine.includes('sharps') &&
+                         !lowerMedicine.includes('container');
+
+                  // Apply search filter
+                  const matchesSearch = preApprovedSearchQuery.trim() === '' ||
+                    lowerMedicine.includes(preApprovedSearchQuery.toLowerCase());
+
+                  return isActualMedicine && matchesSearch;
+                });
+
+                if (filteredList.length === 0) {
+                  return (
+                    <div className="col-span-full text-center py-8 text-slate-400">
+                      No medicines found matching &quot;{preApprovedSearchQuery}&quot;
+                    </div>
+                  );
+                }
+
+                return filteredList.map((medicine, index) => (
+                  <label
+                    key={index}
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-700/50 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={preApprovedMedicines.includes(medicine)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setPreApprovedMedicines([...preApprovedMedicines, medicine]);
+                        } else {
+                          setPreApprovedMedicines(preApprovedMedicines.filter(m => m !== medicine));
+                        }
+                      }}
+                      className="mt-1 w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
+                    />
+                    <span className="text-sm text-slate-300 flex-1">{medicine}</span>
+                  </label>
+                ));
+              })()}
+            </div>
+
+            {preApprovedMedicines.length > 0 && (
+              <div className="mt-4 p-3 bg-blue-900/20 border border-blue-700 rounded-lg">
+                <p className="text-sm text-blue-300 font-medium">
+                  {preApprovedMedicines.length} medicine{preApprovedMedicines.length !== 1 ? 's' : ''} pre-approved
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Doctor's Notes */}

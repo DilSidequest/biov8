@@ -98,13 +98,15 @@ CREATE TABLE IF NOT EXISTS prescriptions (
   
   -- Doctor Information
   doctor_name VARCHAR(255) NOT NULL,
-  clinic_state VARCHAR(100),
-  
+
   -- Medicine Information
   medicine_name VARCHAR(255) NOT NULL,
   medicine_quantity VARCHAR(100),
   medicine_description TEXT,
-  
+
+  -- Pre-approved medicines for future prescriptions (stored as JSON array)
+  pre_approved_medicines TEXT,
+
   -- Doctor's Notes
   doctor_notes TEXT,
   

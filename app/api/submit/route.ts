@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
       shippingAddress,
       tags,
       doctorName,
-      clinicState,
       medicines, // Array of medicines
       doctorNotes,
       signaturePdf,
+      preApprovedMedicines, // Array of pre-approved medicines
       // Health Assessment fields
       healthChanges,
       takingMedications,
@@ -69,10 +69,10 @@ export async function POST(request: NextRequest) {
       tags,
       // Doctor's additions
       doctorName,
-      clinicState,
       medicines, // Array of medicines with name, quantity, description
       doctorNotes,
       signaturePdf,
+      preApprovedMedicines, // Array of pre-approved medicines for future prescriptions
       // Health Assessment
       healthChanges,
       takingMedications,
