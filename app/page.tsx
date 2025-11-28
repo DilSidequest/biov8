@@ -1,50 +1,46 @@
 'use client';
 
-import { useState } from 'react';
-import SearchPanel from '@/components/SearchPanel';
-import OrderDetails from '@/components/OrderDetails';
-import { Order } from '@/lib/types';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function Home() {
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
 
-  const handleSelectOrder = (order: Order) => {
-    setSelectedOrder(order);
-  };
+  useEffect(() => {
+    if (!isLoaded) return;
 
-  const handleSubmitSuccess = (orderId: string) => {
-    console.log(`[Home] Prescription submitted for order ${orderId}`);
-    // Clear selected order after successful submission
-    setSelectedOrder(null);
-  };
+    if (!user) {
+      // Not authenticated, redirect to sign-in
+      router.push('/sign-in');
+      return;
+    }
 
+    // Get user role from public metadata
+    const role = user.publicMetadata?.role as string | undefined;
+
+    if (!role) {
+      // No role set, redirect to onboarding
+      router.push('/onboarding');
+    } else if (role === 'doctor') {
+      // Doctor role, redirect to doctor dashboard
+      router.push('/doctor');
+    } else if (role === 'nurse') {
+      // Nurse role, redirect to nurse dashboard
+      router.push('/nurse');
+    } else {
+      // Unknown role, redirect to onboarding
+      router.push('/onboarding');
+    }
+  }, [user, isLoaded, router]);
+
+  // Show loading state while checking authentication
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 shadow-2xl">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-center">Doctor&apos;s Prescription Portal</h1>
-          <p className="text-blue-100 text-sm mt-2 text-center">Search patients and manage prescriptions</p>
-        </div>
-      </header>
-
-      {/* Main Content - Two Panel Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Search */}
-        <div className="w-1/3 border-r border-slate-700 overflow-hidden bg-slate-800">
-          <SearchPanel
-            selectedOrder={selectedOrder}
-            onSelectOrder={handleSelectOrder}
-          />
-        </div>
-
-        {/* Right Panel - Order Details */}
-        <div className="flex-1 overflow-hidden bg-slate-900">
-          <OrderDetails
-            order={selectedOrder}
-            onSubmitSuccess={handleSubmitSuccess}
-          />
-        </div>
+    <div className="h-screen flex items-center justify-center bg-slate-900">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+        <p className="text-slate-400">Loading...</p>
       </div>
     </div>
   );

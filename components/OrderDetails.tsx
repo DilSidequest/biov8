@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Order } from '@/lib/types';
 import medicinesData from '@/lib/medicines.json';
+import bundleContentsData from '@/lib/bundle_contents.json';
 
 interface OrderDetailsProps {
   order: Order | null;
@@ -27,6 +28,10 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
   }>>([
     { name: '', quantity: '', description: '' }
   ]);
+
+  // Bundle selections: tracks which medicines are selected from each bundle
+  // Key is the medicine index, value is array of selected medicine names
+  const [bundleSelections, setBundleSelections] = useState<Record<number, string[]>>({});
 
   const [doctorNotes, setDoctorNotes] = useState('');
   const [signaturePdf, setSignaturePdf] = useState<File | null>(null);
@@ -57,13 +62,10 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
   const [preApprovedMedicines, setPreApprovedMedicines] = useState<string[]>([]);
   const [preApprovedSearchQuery, setPreApprovedSearchQuery] = useState('');
 
-  // Filter out non-medicine items (bundles, programs, accessories)
+  // Filter out only accessories (keep bundles, programs, and actual medicines)
   const actualMedicines = medicinesData.medicines.filter(med => {
     const lowerMed = med.toLowerCase();
-    return !lowerMed.includes('bundle') &&
-           !lowerMed.includes('program') &&
-           !lowerMed.includes('stack') &&
-           !lowerMed.includes('sharps') &&
+    return !lowerMed.includes('sharps') &&
            !lowerMed.includes('swabs') &&
            !lowerMed.includes('container') &&
            med !== 'Mounjaro Tips';
@@ -77,16 +79,37 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
   const removeMedicine = (index: number) => {
     if (medicines.length > 1) {
       setMedicines(medicines.filter((_, i) => i !== index));
+
+      // Remove bundle selections for this index and reindex remaining selections
+      const newBundleSelections: Record<number, string[]> = {};
+      Object.keys(bundleSelections).forEach(key => {
+        const keyNum = parseInt(key);
+        if (keyNum < index) {
+          newBundleSelections[keyNum] = bundleSelections[keyNum];
+        } else if (keyNum > index) {
+          newBundleSelections[keyNum - 1] = bundleSelections[keyNum];
+        }
+        // Skip keyNum === index (the removed medicine)
+      });
+      setBundleSelections(newBundleSelections);
     }
   };
 
   const updateMedicine = (index: number, field: 'name' | 'quantity' | 'description', value: string) => {
     const updatedMedicines = [...medicines];
+    const oldValue = updatedMedicines[index][field];
     updatedMedicines[index][field] = value;
     setMedicines(updatedMedicines);
 
     // Handle autocomplete filtering for medicine name
     if (field === 'name') {
+      // Clear bundle selections if medicine name changed
+      if (oldValue !== value && bundleSelections[index]) {
+        const newBundleSelections = { ...bundleSelections };
+        delete newBundleSelections[index];
+        setBundleSelections(newBundleSelections);
+      }
+
       if (value.trim().length > 0) {
         const filtered = actualMedicines.filter(med =>
           med.toLowerCase().includes(value.toLowerCase())
@@ -106,6 +129,36 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
     setMedicines(updatedMedicines);
     setActiveDropdownIndex(null);
     setFilteredMedicines([]);
+
+    // Clear bundle selections when medicine name changes
+    if (bundleSelections[index]) {
+      const newBundleSelections = { ...bundleSelections };
+      delete newBundleSelections[index];
+      setBundleSelections(newBundleSelections);
+    }
+  };
+
+  // Helper function to check if a medicine name is a bundle
+  const isBundle = (medicineName: string): boolean => {
+    return medicineName in bundleContentsData.bundle_contents;
+  };
+
+  // Get bundle contents for a medicine
+  const getBundleContents = (medicineName: string): string[] => {
+    return bundleContentsData.bundle_contents[medicineName as keyof typeof bundleContentsData.bundle_contents] || [];
+  };
+
+  // Toggle bundle medicine selection
+  const toggleBundleMedicine = (medicineIndex: number, bundleMedicineName: string) => {
+    const currentSelections = bundleSelections[medicineIndex] || [];
+    const newSelections = currentSelections.includes(bundleMedicineName)
+      ? currentSelections.filter(m => m !== bundleMedicineName)
+      : [...currentSelections, bundleMedicineName];
+
+    setBundleSelections({
+      ...bundleSelections,
+      [medicineIndex]: newSelections
+    });
   };
 
   // Handle clicking outside autocomplete dropdown
@@ -130,6 +183,7 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
     setCustomerData(null);
     setDoctorName('');
     setMedicines([{ name: '', quantity: '', description: '' }]);
+    setBundleSelections({});
     setDoctorNotes('');
     setSignaturePdf(null);
     setHealthChanges('');
@@ -284,6 +338,14 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
         return;
       }
 
+      // If it's a bundle, check that at least one medicine is selected
+      if (isBundle(medicine.name)) {
+        if (!bundleSelections[i] || bundleSelections[i].length === 0) {
+          setError(`Medicine ${i + 1}: Please select at least one medicine from the bundle "${medicine.name}"`);
+          return;
+        }
+      }
+
       if (!medicine.quantity || medicine.quantity.trim().length < 1) {
         setError(`Medicine ${i + 1}: Quantity is required`);
         return;
@@ -347,6 +409,28 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
       // Convert file to base64
       const signatureBase64 = await convertFileToBase64(signaturePdf);
 
+      // Expand bundles into individual medicines
+      const expandedMedicines: Array<{name: string; quantity: string; description: string}> = [];
+
+      for (let i = 0; i < medicines.length; i++) {
+        const medicine = medicines[i];
+
+        // Check if this medicine is a bundle with selections
+        if (isBundle(medicine.name) && bundleSelections[i] && bundleSelections[i].length > 0) {
+          // Add each selected medicine from the bundle
+          bundleSelections[i].forEach(selectedMedicine => {
+            expandedMedicines.push({
+              name: selectedMedicine,
+              quantity: medicine.quantity,
+              description: medicine.description
+            });
+          });
+        } else {
+          // Regular medicine, add as is
+          expandedMedicines.push(medicine);
+        }
+      }
+
       // Prepare payload for n8n submission
       const payload = {
         // Original order data
@@ -362,7 +446,7 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
         tags: customerData.tags,
         // Doctor's additions
         doctorName,
-        medicines, // Array of medicines
+        medicines: expandedMedicines, // Array of medicines (bundles expanded)
         doctorNotes,
         signaturePdf: signatureBase64, // Base64 encoded signature
         preApprovedMedicines, // Pre-approved medicines for future prescriptions
@@ -1007,6 +1091,44 @@ export default function OrderDetails({ order, onSubmitSuccess }: OrderDetailsPro
                     </div>
                   )}
                 </div>
+
+                {/* Bundle Contents Selection */}
+                {medicine.name && isBundle(medicine.name) && (
+                  <div className="border border-yellow-600 rounded-lg p-4 bg-yellow-900/20">
+                    <div className="flex items-start gap-2 mb-3">
+                      <svg className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                      <div className="flex-1">
+                        <h5 className="text-sm font-semibold text-yellow-300 mb-1">Bundle Contents</h5>
+                        <p className="text-xs text-yellow-200/80 mb-3">
+                          Select which medicines from this bundle to prescribe:
+                        </p>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {getBundleContents(medicine.name).map((bundleMedicine, bmIndex) => (
+                            <label
+                              key={bmIndex}
+                              className="flex items-start gap-3 p-2 rounded hover:bg-yellow-800/30 cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={bundleSelections[index]?.includes(bundleMedicine) || false}
+                                onChange={() => toggleBundleMedicine(index, bundleMedicine)}
+                                className="mt-0.5 w-4 h-4 text-yellow-600 bg-slate-700 border-slate-600 rounded focus:ring-yellow-500 focus:ring-2"
+                              />
+                              <span className="text-sm text-slate-200 flex-1">{bundleMedicine}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {bundleSelections[index] && bundleSelections[index].length > 0 && (
+                          <p className="text-xs text-yellow-300 mt-3 font-medium">
+                            {bundleSelections[index].length} medicine(s) selected
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Medicine Quantity */}
                 <div>
