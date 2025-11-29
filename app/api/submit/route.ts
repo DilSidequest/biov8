@@ -37,19 +37,20 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     // Note: signaturePdf can be base64 encoded image (JPEG, PNG, GIF, WebP, SVG) or PDF
-    if (!orderId || !customerEmail || !doctorNotes || !signaturePdf) {
-      console.error(`[${requestId}] Missing required fields:`, { orderId, customerEmail, hasNotes: !!doctorNotes, hasSignature: !!signaturePdf });
+    // For nurse submissions, signaturePdf and detailed doctorNotes are optional
+    if (!orderId || !customerEmail || !doctorNotes) {
+      console.error(`[${requestId}] Missing required fields:`, { orderId, customerEmail, hasNotes: !!doctorNotes });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Validate doctor's notes length
-    if (doctorNotes.length < 10) {
-      console.error(`[${requestId}] Doctor notes too short:`, doctorNotes.length);
+    // Validate doctor's notes length (relaxed for nurse submissions)
+    if (doctorNotes.length < 5) {
+      console.error(`[${requestId}] Notes too short:`, doctorNotes.length);
       return NextResponse.json(
-        { error: 'Doctor\'s notes must be at least 10 characters' },
+        { error: 'Notes must be at least 5 characters' },
         { status: 400 }
       );
     }
